@@ -6,6 +6,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
@@ -47,20 +48,45 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SensorBasedTriangleScreen() {
     val context = LocalContext.current
+    val typeSensor = Sensor.TYPE_GAME_ROTATION_VECTOR; // TODO: AQUI SE CAMBIA EL TIPO DE SENSOR
+
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     var orientation by remember { mutableStateOf(0f) }
     var fixedOrientation by remember { mutableStateOf<Float?>(null) }
 
     val sensorEventListener = remember {
+        // Definición de un objeto anónimo que implementa la interfaz SensorEventListener
         object : SensorEventListener {
+            // Método que se llama cuando hay un cambio en los datos del sensor
             override fun onSensorChanged(event: SensorEvent?) {
+                // Verifica que el evento no sea nulo
                 event?.let {
-                    if (it.sensor.type == Sensor.TYPE_ORIENTATION) {
-                        orientation = it.values[0] // Yaw angle
+                    // Verifica que el vector de valores del evento tenga al menos 4 componentes
+                    if (event.values.size >= 4) {
+                        val rotationMatrix = FloatArray(9)
+                        // Obtiene la matriz de rotación a partir del vector de rotación
+                        SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                        val orientationValues = FloatArray(3)
+                        // Calcula los valores de orientación (azimuth, pitch, roll) a partir de la matriz de rotación
+                        SensorManager.getOrientation(rotationMatrix, orientationValues)
+
+                        // Convierte los valores de orientación de radianes a grados
+                        val roll1 = Math.toDegrees(orientationValues[0].toDouble()).toFloat() // Azimuth (yaw)
+                        val roll2 = Math.toDegrees(orientationValues[1].toDouble()).toFloat() // Pitch
+                        val roll3 = Math.toDegrees(orientationValues[2].toDouble()).toFloat() // Roll
+
+                        // Registra los valores de orientación en los logs para depuración
+                        Log.d("VALOR1:", "" + roll1)
+                        Log.d("VALOR2:", "" + roll2)
+                        Log.d("VALOR3:", "" + roll3)
+
+                        // Asigna el ángulo de rotación (yaw) a la variable 'orientation'
+                        orientation = roll1 // Ángulo de giro (yaw)
                     }
                 }
             }
 
+            // Método que se llama cuando cambia la precisión del sensor (no utilizado aquí)
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
     }
@@ -68,7 +94,7 @@ fun SensorBasedTriangleScreen() {
     DisposableEffect(Unit) {
         sensorManager.registerListener(
             sensorEventListener,
-            sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+            sensorManager.getDefaultSensor(typeSensor),
             SensorManager.SENSOR_DELAY_NORMAL
         )
         onDispose {
